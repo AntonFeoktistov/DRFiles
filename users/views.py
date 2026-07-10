@@ -35,7 +35,7 @@ class LogoutView(APIView):
 
     def post(self, request):
         logout(request)
-        return Response({"message": "Logged out successfully"})
+        return Response({"message": "Logged out successfully."})
 
 
 class HealthCheckView(APIView):
