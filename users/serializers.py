@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -16,12 +17,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ["username", "password"]
 
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username already exists", code=409)
+        return value
+
     def create(self, validated_data):
-        user = User.objects.create_user(
+        return User.objects.create_user(
             username=validated_data["username"],
             password=validated_data["password"],
         )
-        return user
 
 
 class LoginSerializer(serializers.Serializer):
@@ -29,7 +34,11 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        user = authenticate(username=data["username"], password=data["password"])
+        user = authenticate(
+            username=data.get("username"),
+            password=data.get("password"),
+        )
         if not user:
-            raise serializers.ValidationError("Invalid credentials")
-        return {"user": user}
+            raise AuthenticationFailed("Invalid credentials")
+        data["user"] = user
+        return data
