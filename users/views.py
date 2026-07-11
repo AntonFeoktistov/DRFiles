@@ -1,5 +1,4 @@
 from django.contrib.auth import login, logout
-from django.db import IntegrityError
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -15,15 +14,10 @@ class RegisterView(APIView):
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-            user = serializer.save()
-            login(request, user)
-            return Response({"username": user.username}, status=status.HTTP_201_CREATED)
-        except IntegrityError:
-            return Response(
-                {"message": "Username already exists"}, status=status.HTTP_409_CONFLICT
-            )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        login(request, user)
+        return Response({"username": user.username}, status=status.HTTP_201_CREATED)
 
 
 @extend_schema(request=LoginSerializer)

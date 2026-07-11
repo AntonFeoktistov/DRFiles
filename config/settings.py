@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "users",
     "drf_spectacular",
+    "storage",
 ]
 
 MIDDLEWARE = [
