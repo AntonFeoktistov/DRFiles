@@ -3,14 +3,14 @@ def is_resource_folder(path):
 
 
 def get_name_and_parent_path(full_path: str):
+    if not full_path:
+        return "", ""
+
     path = full_path.rstrip("/")
-    parts = path.split("/")
-    name = parts[-1]
-    if len(parts) > 1:
-        parent = "/".join(parts[:-1]) + "/"
-    else:
-        parent = ""
-    return (name, parent)
+    if "/" in path:
+        parts = path.rsplit("/", 1)
+        return parts[1], parts[0] + "/"
+    return path, ""
 
 
 def get_content_type(filename: str) -> str:

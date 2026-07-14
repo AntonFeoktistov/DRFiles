@@ -34,50 +34,24 @@ class ResourceResponseSerializer(serializers.Serializer):
         return super().to_representation(instance)
 
 
-class ResourceCreateSerializer(serializers.Serializer):
-    path = serializers.CharField(required=False, default="")
-    name = serializers.CharField(max_length=255)
-    type = serializers.ChoiceField(choices=["FILE", "FOLDER"])
-    file = serializers.FileField(required=False, write_only=True)
+class ResourceUploadSerializer(serializers.Serializer):
+    path = serializers.CharField(required=False, default="", allow_blank=True)
+    files = serializers.ListField(
+        child=serializers.FileField(), required=True, write_only=True
+    )
 
-    def validate(self, data):
-        if data["type"] == "FILE" and not data.get("file"):
-            raise serializers.ValidationError(
-                {"file": "File is required for FILE type"}
-            )
+    def validate_files(self, value):
+        if not value:
+            raise serializers.ValidationError("No files provided")
 
-        if data["type"] == "FOLDER" and data.get("file"):
-            raise serializers.ValidationError(
-                {"file": "File should not be provided for FOLDER type"}
-            )
+        if len(value) > 100:
+            raise serializers.ValidationError("Too many files (max 100)")
 
-        forbidden = ["/", "\\", ":", "*", "?", '"', "<", ">", "|"]
-        name = data.get("name", "")
-        for char in forbidden:
-            if char in name:
+        max_size = 5 * 1024 * 1024
+        for file in value:
+            if file.size > max_size:
                 raise serializers.ValidationError(
-                    {"name": f"Name cannot contain character: {char}"}
+                    f"File '{file.name}' exceeds maximum size of 5MB"
                 )
 
-        return data
-
-
-class ResourceRenameSerializer(serializers.Serializer):
-    old_path = serializers.CharField()
-    new_name = serializers.CharField(max_length=255)
-
-    def validate_new_name(self, value):
-        forbidden = ["/", "\\", ":", "*", "?", '"', "<", ">", "|"]
-        for char in forbidden:
-            if char in value:
-                raise serializers.ValidationError(
-                    f"Name cannot contain character: {char}"
-                )
         return value
-
-    def validate(self, data):
-        if data["old_path"] == data["new_name"]:
-            raise serializers.ValidationError(
-                {"new_name": "New name must be different from old name"}
-            )
-        return data
