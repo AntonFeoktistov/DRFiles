@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from storage.models import File, Folder
-from storage.services import utils
+from storage.services import path_utils
 
 
 class StorageRepository:
@@ -26,7 +26,7 @@ class StorageRepository:
         if existing:
             raise ValidationError(f"Folder {folder_path} is already exists")
 
-        folder_name, parent_path = utils.get_name_and_parent_path(folder_path)
+        folder_name, parent_path = path_utils.get_name_and_parent_path(folder_path)
 
         parent = None
         if parent_path:
@@ -53,7 +53,7 @@ class StorageRepository:
     def create_file_in_db(
         self, user_id: int, folder_id: int, full_path: str, file_size: int
     ) -> File:
-        file_name, _ = utils.get_name_and_parent_path(full_path)
+        file_name, _ = path_utils.get_name_and_parent_path(full_path)
 
         file = File.objects.create(
             user_id=user_id,

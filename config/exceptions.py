@@ -1,5 +1,6 @@
 from rest_framework import status
 from rest_framework.exceptions import (
+    APIException,
     AuthenticationFailed,
     NotAuthenticated,
     ValidationError,
@@ -65,3 +66,9 @@ def _extract_error_message(data):
         return "; ".join(str(item) for item in data)
 
     return str(data)
+
+
+class ConflictError(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "Resource already exists"
+    default_code = "conflict"

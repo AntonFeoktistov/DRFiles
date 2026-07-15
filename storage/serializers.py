@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from storage.models import File, Folder
-from storage.services import utils
+from storage.services import path_utils
 
 
 class ResourceGetSerializer(serializers.Serializer):
@@ -21,10 +21,10 @@ class ResourceResponseSerializer(serializers.Serializer):
 
     def to_representation(self, instance):
         if isinstance(instance, Folder):
-            name, parent_path = utils.get_name_and_parent_path(instance.full_path)
+            name, parent_path = path_utils.get_name_and_parent_path(instance.full_path)
             return {"path": parent_path, "name": name, "type": "FOLDER"}
         elif isinstance(instance, File):
-            name, parent_path = utils.get_name_and_parent_path(instance.full_path)
+            name, parent_path = path_utils.get_name_and_parent_path(instance.full_path)
             return {
                 "path": parent_path,
                 "name": name,

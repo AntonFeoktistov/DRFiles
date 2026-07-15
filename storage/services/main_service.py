@@ -6,10 +6,11 @@ from rest_framework.exceptions import ValidationError
 
 from storage.models import Folder
 from storage.serializers import ResourceResponseSerializer
-from storage.services import utils
+from storage.services import path_utils
 from storage.services.delete_service import DeleteService
 from storage.services.download_service import DownloadService
 from storage.services.minio_service import get_minio_service
+from storage.services.move_service import MoveService
 from storage.services.repository import StorageRepository
 
 
@@ -19,25 +20,32 @@ class StorageService:
         self.repo = StorageRepository()
         self.delete = DeleteService(self.minio, self.repo)
         self.download = DownloadService(self.minio, self.repo)
+        self.move = MoveService(self.minio, self.repo)
 
     def get_resource(self, user_id: int, path: str):
-        if utils.is_resource_folder(path):
+        if path_utils.is_resource_folder(path):
             resource = self.repo.get_folder_or_none(user_id, path)
         else:
             resource = self.repo.get_file_or_none(user_id, path)
         return resource
 
     def delete_resource(self, user_id: int, path: str):
-        if utils.is_resource_folder(path):
+        if path_utils.is_resource_folder(path):
             self.delete.delete_folder(user_id, path)
         else:
             self.delete.delete_file(user_id, path)
 
     def download_resource(self, user_id: int, path: str):
-        if utils.is_resource_folder(path):
+        if path_utils.is_resource_folder(path):
             return self.download.download_folder(user_id, path)
         else:
             return self.download.download_file(user_id, path)
+
+    def move_resource(self, user_id: int, path_from: str, path_to: str):
+        if path_utils.is_resource_folder(path_from):
+            return self.move.move_folder(user_id, path_from, path_to)
+        else:
+            return self.move.move_file(user_id, path_from, path_to)
 
     @transaction.atomic
     def upload_files(
@@ -49,7 +57,7 @@ class StorageService:
         uploaded_resources = []
 
         for file in files:
-            file_name, parent_path = utils.get_name_and_parent_path(file.name)
+            file_name, parent_path = path_utils.get_name_and_parent_path(file.name)
 
             parts = [p for p in [path, parent_path, file_name] if p]
             full_file_path = "/".join(parts)
