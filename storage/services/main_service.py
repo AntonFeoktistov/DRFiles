@@ -2,8 +2,9 @@ from typing import Any, List, Optional
 
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ParseError
 
+from config.exceptions import ConflictError
 from storage.models import Folder
 from storage.serializers import ResourceResponseSerializer
 from storage.services import path_utils
@@ -47,6 +48,21 @@ class StorageService:
         else:
             return self.move.move_file(user_id, path_from, path_to)
 
+    def create_directory(self, user_id: int, folder_path: str):
+        if not path_utils.is_resource_folder(folder_path):
+            raise ParseError(f"{folder_path} is not valid folder path")
+        existing = self.repo.get_folder_or_none(user_id, folder_path)
+        if existing:
+            raise ConflictError(f"Folder {folder_path} is already exsists")
+
+        folder_name, parent_path = path_utils.get_name_and_parent_path(folder_path)
+
+        parent = self.repo.get_folder_or_none(user_id, parent_path)
+        if not parent:
+            raise NotFound(f"Parent folder not found: {parent_path}")
+        folder = self.repo.create_folder(user_id, folder_path)
+        return folder
+
     @transaction.atomic
     def upload_files(
         self, user_id: int, path: str, files: List[UploadedFile]
@@ -54,33 +70,31 @@ class StorageService:
         if not files:
             return []
 
+        folder = self.repo.get_folder_or_none(user_id, path)
+        if not folder:
+            raise NotFound(f"Folder '{path}' not found")
+
         uploaded_resources = []
 
         for file in files:
             file_name, parent_path = path_utils.get_name_and_parent_path(file.name)
 
-            parts = [p for p in [path, parent_path, file_name] if p]
-            full_file_path = "/".join(parts)
+            full_file_path = path_utils.join_paths(path, parent_path, file_name)
 
             if self.repo.get_file_or_none(user_id, full_file_path):
-                raise ValidationError(
-                    f"File '{full_file_path}' already exists", code=409
-                )
+                raise ConflictError(f"File '{full_file_path}' already exists")
 
             if self.minio.is_file_exists(user_id, full_file_path):
-                raise ValidationError(
-                    f"File '{full_file_path}' already exists in storage", code=409
+                raise ConflictError(
+                    f"File '{full_file_path}' already exists in storage"
                 )
 
-            target_folder = None
             if parent_path:
-                target_folder = self._ensure_folder_path(user_id, parent_path)
-            elif path:
-                target_folder = self.repo.get_folder_or_none(user_id, path)
-                if not target_folder:
-                    raise ValidationError(f"Folder '{path}' not found", code=404)
+                target_folder = self._ensure_folder_path(
+                    user_id, path_utils.join_paths(path, parent_path)
+                )
             else:
-                target_folder = self.repo.get_or_create_root_folder(user_id)
+                target_folder = folder
 
             self.minio.upload_file(
                 user_id, full_file_path, file, content_type=file.content_type
@@ -126,6 +140,3 @@ class StorageService:
             parent = folder
 
         return folder
-
-    def _get_minio_path(self, user_id: int, path: str) -> str:
-        return f"user-{user_id}-files/{path}"

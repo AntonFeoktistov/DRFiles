@@ -1,6 +1,5 @@
 from typing import List, Optional
 
-from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from storage.models import File, Folder
@@ -22,22 +21,11 @@ class StorageRepository:
 
     @transaction.atomic
     def create_folder(self, user_id: int, folder_path: str) -> Folder:
-        existing = self.get_folder_or_none(user_id, folder_path)
-        if existing:
-            raise ValidationError(f"Folder {folder_path} is already exists")
-
         folder_name, parent_path = path_utils.get_name_and_parent_path(folder_path)
-
-        parent = None
-        if parent_path:
-            parent = self.get_folder_or_none(user_id, parent_path)
-            if not parent:
-                raise ValidationError(f"Parent folder not found: {parent_path}")
-
+        parent = self.get_folder_or_none(user_id, parent_path)
         folder = Folder.objects.create(
             user_id=user_id, name=folder_name, folder=parent, full_path=folder_path
         )
-
         return folder
 
     def get_or_create_root_folder(self, user_id: int) -> Folder:

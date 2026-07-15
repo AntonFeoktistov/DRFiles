@@ -29,7 +29,7 @@ class ResourceView(APIView):
 
         path = serializer.validated_data.get("path", "")
 
-        resource = self.storage.get_resource(user=request.user, path=path)
+        resource = self.storage.get_resource(user=request.user.id, path=path)
 
         response_serializer = ResourceResponseSerializer(resource)
         return Response(response_serializer.data, status=status.HTTP_200_OK)

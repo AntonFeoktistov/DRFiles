@@ -7,11 +7,6 @@ from storage.services import path_utils
 class ResourceGetSerializer(serializers.Serializer):
     path = serializers.CharField(required=False, default="", allow_blank=True)
 
-    def validate_path(self, value):
-        if value and not isinstance(value, str):
-            raise serializers.ValidationError("Path must be a string")
-        return value.strip()
-
 
 class ResourceResponseSerializer(serializers.Serializer):
     path = serializers.CharField()

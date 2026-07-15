@@ -42,3 +42,8 @@ def get_content_type(filename: str) -> str:
         "js": "application/javascript",
     }
     return types.get(ext, "application/octet-stream")
+
+
+def join_paths(*paths: str) -> str:
+    parts = [p.strip("/") for p in paths if p]
+    return "/".join(parts) if parts else ""

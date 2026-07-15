@@ -37,13 +37,12 @@ class MoveService:
                 raise NotFound(f"File '{path_from}' not found in storage")
             raise Exception(f"MinIO error: {str(e)}")
 
-        file_from.delete()
-        size = self.minio.get_file_info(user_id, path_to).get("size", 0)
-        file_to = self.repo.create_file_in_db(
-            user_id=user_id, folder_id=folder.id, full_path=path_to, file_size=size
-        )
+        file_from.full_path = path_to
+        file_from.name = file_name
+        file_from.folder = folder
+        file_from.save()
 
-        return file_to
+        return file_from
 
     @transaction.atomic
     def move_folder(self, user_id: int, path_from: str, path_to: str):
@@ -134,7 +133,11 @@ class MoveService:
             file_obj.save()
 
     def _update_folder_path(
-        self, folder: Folder, path_from: str, path_to: str, folders_dict: dict
+        self,
+        folder: Folder,
+        path_from: str,
+        path_to: str,
+        folders_dict: dict[str, Folder],
     ) -> str:
         old_full = folder.full_path
         new_full = old_full.replace(path_from, path_to, 1)
@@ -146,6 +149,7 @@ class MoveService:
     def _get_folder_id_for_path(
         self, user_id: int, folder_path: str, updated_folders: dict[str, Folder]
     ) -> int:
+        """Получает ID папки по пути (из кэша или БД)"""
         if not folder_path:
             root = self.repo.get_or_create_root_folder(user_id)
             return root.id
