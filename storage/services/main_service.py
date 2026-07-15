@@ -8,6 +8,7 @@ from storage.models import Folder
 from storage.serializers import ResourceResponseSerializer
 from storage.services import utils
 from storage.services.delete_service import DeleteService
+from storage.services.download_service import DownloadService
 from storage.services.minio_service import get_minio_service
 from storage.services.repository import StorageRepository
 
@@ -17,6 +18,7 @@ class StorageService:
         self.minio = get_minio_service()
         self.repo = StorageRepository()
         self.delete = DeleteService(self.minio, self.repo)
+        self.download = DownloadService(self.minio, self.repo)
 
     def get_resource(self, user_id: int, path: str):
         if utils.is_resource_folder(path):
@@ -30,6 +32,12 @@ class StorageService:
             self.delete.delete_folder(user_id, path)
         else:
             self.delete.delete_file(user_id, path)
+
+    def download_resource(self, user_id: int, path: str):
+        if utils.is_resource_folder(path):
+            return self.download.download_folder(user_id, path)
+        else:
+            return self.download.download_file(user_id, path)
 
     @transaction.atomic
     def upload_files(

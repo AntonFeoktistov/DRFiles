@@ -5,11 +5,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from storage.services.storage_service import StorageService
-from storage.spectacular.delete_schemas import delete_parameters, delete_responses
-from storage.spectacular.upload_schemas import upload_parameters, upload_request
+from storage.services.main_service import StorageService
+from storage.spectacular.delete_params import delete_parameters, delete_responses
+from storage.spectacular.upload_params import upload_parameters, upload_request
 
-from .serializers import (
+from ..serializers import (
     ResourceGetSerializer,
     ResourceResponseSerializer,
 )

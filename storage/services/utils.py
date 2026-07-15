@@ -1,5 +1,5 @@
 def is_resource_folder(path):
-    return path.endswith("/")
+    return path.endswith("/") or path == ""
 
 
 def get_name_and_parent_path(full_path: str):

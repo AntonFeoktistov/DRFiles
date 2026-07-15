@@ -83,7 +83,7 @@ class MinioService:
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
             if error_code == "404":
-                raise FileNotFoundError(f"File '{file_path}' not found in MinIO")
+                raise FileNotFoundError(f"File '{full_path}' not found in MinIO")
             raise
 
     def delete_file(self, user_id: int, file_path: str) -> None:
