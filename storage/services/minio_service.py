@@ -39,9 +39,15 @@ class MinioService:
             else:
                 raise
 
-    def is_file_exists(self, file_path: str) -> bool:
+    def _get_minio_path(self, user_id: int, file_path: str) -> str:
+        if not file_path:
+            return f"user-{user_id}-files"
+        return f"user-{user_id}-files/{file_path}"
+
+    def is_file_exists(self, user_id: int, file_path: str) -> bool:
+        full_path = self._get_minio_path(user_id, file_path)
         try:
-            self.client.head_object(Bucket=self.bucket_name, Key=file_path)
+            self.client.head_object(Bucket=self.bucket_name, Key=full_path)
             return True
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
@@ -50,8 +56,9 @@ class MinioService:
             raise
 
     def upload_file(
-        self, file_path: str, file_obj, content_type: Optional[str] = None
+        self, user_id: int, file_path: str, file_obj, content_type: Optional[str] = None
     ) -> None:
+        full_path = self._get_minio_path(user_id, file_path)
         extra_args = {}
         if content_type:
             extra_args["ContentType"] = content_type
@@ -59,17 +66,18 @@ class MinioService:
         if isinstance(file_obj, str):
             with open(file_obj, "rb") as f:
                 self.client.upload_fileobj(
-                    f, self.bucket_name, file_path, ExtraArgs=extra_args
+                    f, self.bucket_name, full_path, ExtraArgs=extra_args
                 )
         else:
             self.client.upload_fileobj(
-                file_obj, self.bucket_name, file_path, ExtraArgs=extra_args
+                file_obj, self.bucket_name, full_path, ExtraArgs=extra_args
             )
 
-    def download_file(self, file_path: str) -> BytesIO:
+    def download_file(self, user_id: int, file_path: str) -> BytesIO:
+        full_path = self._get_minio_path(user_id, file_path)
         try:
             file_obj = BytesIO()
-            self.client.download_fileobj(self.bucket_name, file_path, file_obj)
+            self.client.download_fileobj(self.bucket_name, full_path, file_obj)
             file_obj.seek(0)
             return file_obj
         except ClientError as e:
@@ -78,9 +86,10 @@ class MinioService:
                 raise FileNotFoundError(f"File '{file_path}' not found in MinIO")
             raise
 
-    def delete_file(self, file_path: str) -> None:
+    def delete_file(self, user_id: int, file_path: str) -> None:
+        full_path = self._get_minio_path(user_id, file_path)
         try:
-            self.client.delete_object(Bucket=self.bucket_name, Key=file_path)
+            self.client.delete_object(Bucket=self.bucket_name, Key=full_path)
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
             if error_code == "404":
@@ -88,10 +97,12 @@ class MinioService:
             else:
                 raise
 
-    def cleanup_minio_objects(self, object_paths: List[str]) -> None:
-        if not object_paths:
+    def delete_files(self, user_id: int, file_paths: List[str]) -> None:
+        if not file_paths:
             return
-        objects_to_delete = [{"Key": path} for path in object_paths]
+
+        full_paths = [self._get_minio_path(user_id, path) for path in file_paths]
+        objects_to_delete = [{"Key": path} for path in full_paths]
 
         try:
             self.client.delete_objects(
@@ -100,15 +111,16 @@ class MinioService:
             )
         except ClientError as e:
             print(f"Error during batch delete: {str(e)}")
-            for path in object_paths:
+            for path in full_paths:
                 try:
                     self.client.delete_object(Bucket=self.bucket_name, Key=path)
                 except ClientError:
                     pass
 
-    def get_file_info(self, file_path: str) -> dict:
+    def get_file_info(self, user_id: int, file_path: str) -> dict:
+        full_path = self._get_minio_path(user_id, file_path)
         try:
-            response = self.client.head_object(Bucket=self.bucket_name, Key=file_path)
+            response = self.client.head_object(Bucket=self.bucket_name, Key=full_path)
             return {
                 "size": response["ContentLength"],
                 "content_type": response.get("ContentType", "application/octet-stream"),
@@ -121,11 +133,13 @@ class MinioService:
                 raise FileNotFoundError(f"File '{file_path}' not found in MinIO")
             raise
 
-    def copy_file(self, source_path: str, dest_path: str) -> None:
+    def copy_file(self, user_id: int, source_path: str, dest_path: str) -> None:
+        full_source = self._get_minio_path(user_id, source_path)
+        full_dest = self._get_minio_path(user_id, dest_path)
         try:
-            copy_source = {"Bucket": self.bucket_name, "Key": source_path}
+            copy_source = {"Bucket": self.bucket_name, "Key": full_source}
             self.client.copy_object(
-                Bucket=self.bucket_name, Key=dest_path, CopySource=copy_source
+                Bucket=self.bucket_name, Key=full_dest, CopySource=copy_source
             )
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
@@ -133,10 +147,10 @@ class MinioService:
                 raise FileNotFoundError(f"Source file '{source_path}' not found")
             raise
 
-    def move_file(self, source_path: str, dest_path: str) -> None:
+    def move_file(self, user_id: int, source_path: str, dest_path: str) -> None:
         try:
-            self.copy_file(source_path, dest_path)
-            self.delete_file(source_path)
+            self.copy_file(user_id, source_path, dest_path)
+            self.delete_file(user_id, source_path)
         except Exception as e:
             raise Exception(f"Failed to move file: {str(e)}")
 

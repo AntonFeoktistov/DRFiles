@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from storage.services.storage_service import StorageService
+from storage.spectacular.delete_schemas import delete_parameters, delete_responses
 from storage.spectacular.upload_schemas import upload_parameters, upload_request
 
 from .serializers import (
@@ -53,6 +54,29 @@ class ResourceView(APIView):
 
         except ValidationError as e:
             return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+        except FileNotFoundError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(
+                {"detail": f"Internal server error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @extend_schema(
+        parameters=delete_parameters,
+        responses=delete_responses,
+    )
+    def delete(self, request):
+        path = request.query_params.get("path")
+
+        if not path:
+            return Response(
+                {"detail": "Path is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            self.storage.delete_resource(user_id=request.user.id, path=path)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except FileNotFoundError as e:
             return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:

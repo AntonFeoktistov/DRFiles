@@ -22,7 +22,7 @@ class StorageRepository:
 
     @transaction.atomic
     def create_folder(self, user_id: int, folder_path: str) -> Folder:
-        existing = self.get_folder_or_none(folder_path)
+        existing = self.get_folder_or_none(user_id, folder_path)
         if existing:
             raise ValidationError(f"Folder {folder_path} is already exists")
 

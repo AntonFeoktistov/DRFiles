@@ -14,7 +14,7 @@ class Folder(models.Model):
         blank=True,
         related_name="subfolders",
     )
-    full_path = models.CharField(max_length=1024, unique=True, blank=True)
+    full_path = models.CharField(max_length=1024, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

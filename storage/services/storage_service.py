@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from storage.models import Folder
 from storage.serializers import ResourceResponseSerializer
 from storage.services import utils
+from storage.services.delete_service import DeleteService
 from storage.services.minio_service import get_minio_service
 from storage.services.repository import StorageRepository
 
@@ -15,6 +16,7 @@ class StorageService:
     def __init__(self):
         self.minio = get_minio_service()
         self.repo = StorageRepository()
+        self.delete = DeleteService(self.minio, self.repo)
 
     def get_resource(self, user_id: int, path: str):
         if utils.is_resource_folder(path):
@@ -22,6 +24,12 @@ class StorageService:
         else:
             resource = self.repo.get_file_or_none(user_id, path)
         return resource
+
+    def delete_resource(self, user_id: int, path: str):
+        if utils.is_resource_folder(path):
+            self.delete.delete_folder(user_id, path)
+        else:
+            self.delete.delete_file(user_id, path)
 
     @transaction.atomic
     def upload_files(
@@ -43,8 +51,7 @@ class StorageService:
                     f"File '{full_file_path}' already exists", code=409
                 )
 
-            minio_file_path = self._get_minio_path(user_id, full_file_path)
-            if self.minio.is_file_exists(minio_file_path):
+            if self.minio.is_file_exists(user_id, full_file_path):
                 raise ValidationError(
                     f"File '{full_file_path}' already exists in storage", code=409
                 )
@@ -60,7 +67,7 @@ class StorageService:
                 target_folder = self.repo.get_or_create_root_folder(user_id)
 
             self.minio.upload_file(
-                minio_file_path, file, content_type=file.content_type
+                user_id, full_file_path, file, content_type=file.content_type
             )
 
             db_file = self.repo.create_file_in_db(
