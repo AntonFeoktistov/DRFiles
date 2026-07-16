@@ -9,7 +9,6 @@ from storage.services import path_utils
 from storage.services.main_service import StorageService
 from storage.spectacular.directory_params import (
     directory_get_parameters,
-    directory_get_responses,
 )
 
 from ..serializers import (
@@ -24,9 +23,7 @@ class DirectoryView(APIView):
         super().__init__(**kwargs)
         self.storage = StorageService()
 
-    @extend_schema(
-        parameters=directory_get_parameters, responses=directory_get_responses
-    )
+    @extend_schema(parameters=directory_get_parameters)
     def get(self, request):
         path = request.query_params.get("path", "")
         if not path_utils.is_resource_folder(path):
@@ -36,9 +33,7 @@ class DirectoryView(APIView):
         response_serializer = ResourceResponseSerializer(resource)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(
-        parameters=directory_get_parameters, responses=directory_get_responses
-    )
+    @extend_schema(parameters=directory_get_parameters)
     def post(self, request):
         path = request.query_params.get("path", "")
 

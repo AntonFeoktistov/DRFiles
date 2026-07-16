@@ -63,6 +63,11 @@ class StorageService:
         folder = self.repo.create_folder(user_id, folder_path)
         return folder
 
+    def search_resources(self, user_id: int, query: str):
+        files = self.repo.get_files_by_query(user_id, query)
+        folders = self.repo.get_folders_by_query(user_id, query)
+        return files + folders
+
     @transaction.atomic
     def upload_files(
         self, user_id: int, path: str, files: List[UploadedFile]

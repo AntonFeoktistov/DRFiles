@@ -1,12 +1,13 @@
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter
 
-download_parameters = [
+search_parameters = [
     OpenApiParameter(
-        name="path",
+        name="query",
         type=OpenApiTypes.STR,
         location=OpenApiParameter.QUERY,
-        description="Path to the file or folder to download",
+        description="Search query",
         required=False,
+        default="",
     ),
 ]

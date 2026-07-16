@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from storage.services.main_service import StorageService
-from storage.spectacular.download_params import download_parameters, download_responses
+from storage.spectacular.download_params import download_parameters
 
 
 class ResourceDownloadView(APIView):
@@ -15,10 +15,7 @@ class ResourceDownloadView(APIView):
         super().__init__(**kwargs)
         self.storage = StorageService()
 
-    @extend_schema(
-        parameters=download_parameters,
-        responses=download_responses,
-    )
+    @extend_schema(parameters=download_parameters)
     def get(self, request):
         path = request.query_params.get("path", "")
 

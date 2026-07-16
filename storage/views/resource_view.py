@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from storage.services.main_service import StorageService
-from storage.spectacular.delete_params import delete_parameters, delete_responses
+from storage.spectacular.delete_params import delete_parameters
 from storage.spectacular.upload_params import upload_parameters, upload_request
 
 from ..serializers import (
@@ -62,10 +62,7 @@ class ResourceView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @extend_schema(
-        parameters=delete_parameters,
-        responses=delete_responses,
-    )
+    @extend_schema(parameters=delete_parameters)
     def delete(self, request):
         path = request.query_params.get("path")
 
