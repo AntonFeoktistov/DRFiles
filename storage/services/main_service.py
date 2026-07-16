@@ -48,6 +48,14 @@ class StorageService:
         else:
             return self.move.move_file(user_id, path_from, path_to)
 
+    def get_folder_resources(self, user_id: int, folder_path: str):
+        folder = self.repo.get_folder_or_none(user_id, folder_path)
+        if not folder:
+            raise NotFound(f"{folder_path} is not found")
+        files = self.repo.get_files_by_parent(user_id, folder)
+        folders = self.repo.get_folders_by_parent(user_id, folder)
+        return files + folders
+
     def create_directory(self, user_id: int, folder_path: str):
         if not path_utils.is_resource_folder(folder_path):
             raise ParseError(f"{folder_path} is not valid folder path")

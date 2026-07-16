@@ -1,3 +1,5 @@
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +10,7 @@ from storage.services.main_service import StorageService
 from storage.spectacular.download_params import download_parameters
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class ResourceDownloadView(APIView):
     permission_classes = [IsAuthenticated]
 

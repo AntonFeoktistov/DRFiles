@@ -57,7 +57,7 @@ class StorageRepository:
         return list(File.objects.filter(user_id=user_id, folder=parent))
 
     def get_folders_by_parent(self, user_id: int, parent: Folder) -> List[Folder]:
-        return list(Folder.objects.filter(user_id=user_id, parent=parent))
+        return list(Folder.objects.filter(user_id=user_id, folder=parent))
 
     def get_files_by_query(self, user_id: int, query: str) -> List[File]:
         return list(File.objects.filter(user_id=user_id, name__icontains=query))

@@ -1,3 +1,5 @@
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ParseError
@@ -16,6 +18,7 @@ from ..serializers import (
 )
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class DirectoryView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -29,8 +32,8 @@ class DirectoryView(APIView):
         if not path_utils.is_resource_folder(path):
             raise ParseError(f"{path} is not valid folder path")
 
-        resource = self.storage.get_resource(request.user.id, path)
-        response_serializer = ResourceResponseSerializer(resource)
+        resources = self.storage.get_folder_resources(request.user.id, path)
+        response_serializer = ResourceResponseSerializer(resources, many=True)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(parameters=directory_get_parameters)
