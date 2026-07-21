@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 
+from config.exceptions import ConflictError
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,10 +18,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["username", "password"]
+        extra_kwargs = {"username": {"validators": []}}
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("Username already exists", code=409)
+            raise ConflictError("Username already exists")
         return value
 
     def create(self, validated_data):

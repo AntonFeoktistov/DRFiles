@@ -1,12 +1,18 @@
+import logging
+import time
+
 from django.core.cache import cache
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import LoginSerializer, RegisterSerializer
+
+logger = logging.getLogger(__name__)
 
 
 @extend_schema(request=RegisterSerializer)
@@ -51,16 +57,21 @@ class LoginView(APIView):
         )
 
 
-@extend_schema()
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         refresh = request.data.get("refresh")
         if refresh:
-            token = RefreshToken(refresh)
-            # Добавляем токен в черный список до истечения его срока
-            cache.set(f"blacklist_{token.jti}", True, timeout=token.current_time)
+            try:
+                token = RefreshToken(refresh)
+                jti = token["jti"]
+                exp = token["exp"]
+                timeout = exp - int(time.time())
+                if timeout > 0:
+                    cache.set(f"blacklist_{jti}", True, timeout=timeout)
+            except TokenError:
+                pass
         return Response(status=204)
 
 
