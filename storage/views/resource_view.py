@@ -1,5 +1,3 @@
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
@@ -17,7 +15,6 @@ from ..serializers import (
 )
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class ResourceView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -39,9 +36,9 @@ class ResourceView(APIView):
 
     @extend_schema(request=upload_request, parameters=upload_parameters)
     def post(self, request):
-        files = request.FILES.getlist("files") if request.FILES else []
+        object = request.FILES.getlist("object") if request.FILES else []
 
-        if not files:
+        if not object:
             return Response(
                 {"detail": "No files provided"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -50,7 +47,7 @@ class ResourceView(APIView):
 
         try:
             uploaded = self.storage.upload_files(
-                user_id=request.user.id, path=path, files=files
+                user_id=request.user.id, path=path, files=object
             )
 
             return Response(uploaded, status=status.HTTP_201_CREATED)

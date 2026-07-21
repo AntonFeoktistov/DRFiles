@@ -1,5 +1,3 @@
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ParseError
@@ -18,7 +16,6 @@ from ..serializers import (
 )
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class DirectoryView(APIView):
     permission_classes = [IsAuthenticated]
 

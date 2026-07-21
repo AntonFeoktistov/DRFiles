@@ -15,20 +15,20 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
+    networks:
+      - drfiles_network
   redis:
     image: redis:7-alpine
-    container_name: myproject_redis
+    container_name: drfiles_redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-  
+    command: redis-server --appendonly yes
+    restart: always
+    networks:
+      - drfiles_network
+      
   minio:
     image: minio/minio:latest
     container_name: drf_minio
@@ -46,9 +46,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    networks:
+      - drfiles_network
+
+networks:
+  drfiles_network:
+    driver: bridge
 
 volumes:
   postgres_data:
   redis_data:
   minio_data:
-

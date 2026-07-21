@@ -17,7 +17,7 @@ class ResourceResponseSerializer(serializers.Serializer):
     def to_representation(self, instance):
         if isinstance(instance, Folder):
             name, parent_path = path_utils.get_name_and_parent_path(instance.full_path)
-            return {"path": parent_path, "name": name, "type": "FOLDER"}
+            return {"path": parent_path, "name": name, "type": "DIRECTORY"}
         elif isinstance(instance, File):
             name, parent_path = path_utils.get_name_and_parent_path(instance.full_path)
             return {

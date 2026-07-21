@@ -23,7 +23,7 @@ upload_request = {
     "multipart/form-data": {
         "type": "object",
         "properties": {
-            "files": {
+            "object": {
                 "type": "array",
                 "items": {"type": "string", "format": "binary"},
                 "description": "Select files to upload",
