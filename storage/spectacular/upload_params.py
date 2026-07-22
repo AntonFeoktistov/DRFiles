@@ -1,22 +1,13 @@
-from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, OpenApiTypes
-from rest_framework import serializers
-
-
-class UploadRequestSerializer(serializers.Serializer):
-    files = serializers.ListField(
-        child=serializers.FileField(), required=True, help_text="Select files to upload"
-    )
-
+from drf_spectacular.utils import OpenApiParameter
 
 upload_parameters = [
     OpenApiParameter(
         name="path",
-        type=OpenApiTypes.STR,
+        type=str,
         location=OpenApiParameter.QUERY,
-        description="Path to upload files to",
+        description="Базовая папка для загрузки",
         required=False,
-    ),
+    )
 ]
 
 upload_request = {
@@ -27,7 +18,13 @@ upload_request = {
                 "type": "array",
                 "items": {"type": "string", "format": "binary"},
                 "description": "Select files to upload",
-            }
+            },
+            "paths": {
+                "type": "string",
+                "description": "JSON array of paths for each file",
+                "example": '["documents/report.pdf", "subfolder/file.txt"]',
+            },
         },
+        "required": ["object"],
     }
 }

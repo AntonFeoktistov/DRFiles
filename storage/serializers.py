@@ -27,26 +27,3 @@ class ResourceResponseSerializer(serializers.Serializer):
                 "type": "FILE",
             }
         return super().to_representation(instance)
-
-
-class ResourceUploadSerializer(serializers.Serializer):
-    path = serializers.CharField(required=False, default="", allow_blank=True)
-    files = serializers.ListField(
-        child=serializers.FileField(), required=True, write_only=True
-    )
-
-    def validate_files(self, value):
-        if not value:
-            raise serializers.ValidationError("No files provided")
-
-        if len(value) > 100:
-            raise serializers.ValidationError("Too many files (max 100)")
-
-        max_size = 5 * 1024 * 1024
-        for file in value:
-            if file.size > max_size:
-                raise serializers.ValidationError(
-                    f"File '{file.name}' exceeds maximum size of 5MB"
-                )
-
-        return value

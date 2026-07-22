@@ -1,24 +1,22 @@
-from typing import Any, List, Optional
+from typing import List
 
-from django.core.files.uploadedfile import UploadedFile
-from django.db import transaction
 from rest_framework.exceptions import NotFound, ParseError
 
 from config.exceptions import ConflictError
-from storage.models import Folder
-from storage.serializers import ResourceResponseSerializer
 from storage.services import path_utils
 from storage.services.delete_service import DeleteService
 from storage.services.download_service import DownloadService
 from storage.services.minio_service import get_minio_service
 from storage.services.move_service import MoveService
 from storage.services.repository import StorageRepository
+from storage.services.upload_service import UploadService
 
 
 class StorageService:
     def __init__(self):
         self.minio = get_minio_service()
         self.repo = StorageRepository()
+        self.upload = UploadService(self.minio, self.repo)
         self.delete = DeleteService(self.minio, self.repo)
         self.download = DownloadService(self.minio, self.repo)
         self.move = MoveService(self.minio, self.repo)
@@ -29,6 +27,11 @@ class StorageService:
         else:
             resource = self.repo.get_file_or_none(user_id, path)
         return resource
+
+    def upload_resources(
+        self, user_id: int, base_path: str, files_with_paths: List[tuple]
+    ):
+        return self.upload.upload_files(user_id, base_path, files_with_paths)
 
     def delete_resource(self, user_id: int, path: str):
         if path_utils.is_resource_folder(path):
@@ -75,81 +78,3 @@ class StorageService:
         files = self.repo.get_files_by_query(user_id, query)
         folders = self.repo.get_folders_by_query(user_id, query)
         return files + folders
-
-    @transaction.atomic
-    def upload_files(
-        self, user_id: int, path: str, files: List[UploadedFile]
-    ) -> List[dict[str, Any]]:
-        if not files:
-            return []
-
-        folder = self.repo.get_folder_or_none(user_id, path)
-        if not folder:
-            raise NotFound(f"Folder '{path}' not found")
-
-        uploaded_resources = []
-
-        for file in files:
-            file_name, parent_path = path_utils.get_name_and_parent_path(file.name)
-
-            full_file_path = path_utils.join_paths(path, parent_path, file_name)
-
-            if self.repo.get_file_or_none(user_id, full_file_path):
-                raise ConflictError(f"File '{full_file_path}' already exists")
-
-            if self.minio.is_file_exists(user_id, full_file_path):
-                raise ConflictError(
-                    f"File '{full_file_path}' already exists in storage"
-                )
-
-            if parent_path:
-                target_folder = self._ensure_folder_path(
-                    user_id, path_utils.join_paths(path, parent_path)
-                )
-            else:
-                target_folder = folder
-
-            self.minio.upload_file(
-                user_id, full_file_path, file, content_type=file.content_type
-            )
-
-            db_file = self.repo.create_file_in_db(
-                user_id=user_id,
-                folder_id=target_folder.id,
-                full_path=full_file_path,
-                file_size=file.size,
-            )
-
-            serializer = ResourceResponseSerializer(db_file)
-            uploaded_resources.append(serializer.data)
-
-        return uploaded_resources
-
-    def upload_single_file(
-        self, user_id: int, path: str, file: UploadedFile
-    ) -> Optional[dict[str, Any]]:
-        result = self.upload_files(user_id, path, [file])
-        return result[0] if result else None
-
-    def _ensure_folder_path(self, user_id: int, path: str) -> Folder:
-        if not path:
-            return None
-
-        folder = self.repo.get_folder_or_none(user_id, path)
-        if folder:
-            return folder
-
-        parts = path.split("/")
-        current_path = ""
-        parent = None
-
-        for part in parts:
-            if not part:
-                continue
-            current_path = f"{current_path}/{part}".strip("/") if current_path else part
-            folder = self.repo.get_folder_or_none(user_id, current_path)
-            if not folder:
-                folder = self.repo.create_folder(user_id, current_path, parent)
-            parent = folder
-
-        return folder

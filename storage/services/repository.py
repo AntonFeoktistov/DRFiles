@@ -21,8 +21,11 @@ class StorageRepository:
 
     @transaction.atomic
     def create_folder(self, user_id: int, folder_path: str) -> Folder:
+        if folder_path and not folder_path.endswith("/"):
+            folder_path = f"{folder_path}/"
+
         folder_name, parent_path = path_utils.get_name_and_parent_path(folder_path)
-        parent = self.get_folder_or_none(user_id, parent_path)
+        parent = self.get_folder_or_none(user_id, parent_path) if parent_path else None
         folder = Folder.objects.create(
             user_id=user_id, name=folder_name, folder=parent, full_path=folder_path
         )

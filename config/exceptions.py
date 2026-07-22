@@ -11,6 +11,12 @@ class ConflictError(APIException):
 
 
 def custom_exception_handler(exc, context):
+    if isinstance(exc, ConflictError):
+        return Response(
+            {"detail": exc.default_detail},
+            status=exc.status_code,
+        )
+
     response = exception_handler(exc, context)
 
     if response is not None:

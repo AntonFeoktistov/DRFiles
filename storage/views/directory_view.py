@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from storage.services import path_utils
 from storage.services.main_service import StorageService
 from storage.spectacular.directory_params import (
+    directory_create_parameters,
     directory_get_parameters,
 )
 
@@ -33,16 +34,10 @@ class DirectoryView(APIView):
         response_serializer = ResourceResponseSerializer(resources, many=True)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(parameters=directory_get_parameters)
+    @extend_schema(parameters=directory_create_parameters)
     def post(self, request):
         path = request.query_params.get("path", "")
+        directory = self.storage.create_directory(request.user.id, path)
 
-        try:
-            directory = self.storage.create_directory(request.user.id, path)
-            response_serializer = ResourceResponseSerializer(directory)
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {"detail": f"Internal server error: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        response_serializer = ResourceResponseSerializer(directory)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
