@@ -26,8 +26,15 @@ def test_user(user_model):
 
 
 @pytest.fixture
+def test_user_2(user_model):
+    return user_model.objects.create_user(
+        username=TEST_USERNAME + "2",
+        password=TEST_PASSWORD,
+    )
+
+
+@pytest.fixture
 def auth_client(client, test_user):
-    print(f"Creating auth_client for user: {test_user.id}")
     response = client.post(
         urls.login_url,
         {"username": TEST_USERNAME, "password": TEST_PASSWORD},
@@ -68,3 +75,16 @@ def make_test_folder(test_user):
         return folder
 
     return _make_test_folder
+
+
+def make_auth_client_2(client, test_user_2):
+    response = client.post(
+        urls.login_url,
+        {"username": TEST_USERNAME + "2", "password": TEST_PASSWORD},
+        format="json",
+    )
+    access_token = response.json()["access"]
+
+    auth_client = APIClient()
+    auth_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    return auth_client

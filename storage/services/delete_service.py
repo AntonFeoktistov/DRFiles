@@ -1,5 +1,6 @@
 from django.db import transaction
 from minio import S3Error
+from rest_framework.exceptions import NotFound
 
 from storage.services.minio_service import MinioService
 from storage.services.repository import StorageRepository
@@ -14,7 +15,7 @@ class DeleteService:
     def delete_file(self, user_id: int, file_path: str) -> None:
         file = self.repo.get_file_or_none(user_id, file_path)
         if not file:
-            raise FileNotFoundError(f"File '{file_path}' not found")
+            raise NotFound(f"File '{file_path}' not found")
 
         try:
             self.minio.delete_file(user_id, file_path)
@@ -27,7 +28,7 @@ class DeleteService:
     def delete_folder(self, user_id: int, folder_path: str) -> None:
         folder = self.repo.get_folder_or_none(user_id, folder_path)
         if not folder:
-            raise FileNotFoundError(f"Folder '{folder_path}' not found")
+            raise NotFound(f"File '{folder_path}' not found")
 
         files = self.repo.get_files_by_prefix(user_id, folder_path)
 

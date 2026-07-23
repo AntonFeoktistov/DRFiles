@@ -59,6 +59,7 @@ class ResourceView(APIView):
                 {"detail": "Path is required"}, status=status.HTTP_400_BAD_REQUEST
             )
         self.storage.delete_resource(user_id=request.user.id, path=path)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(request=upload_request, parameters=upload_parameters)
     def post(self, request):
