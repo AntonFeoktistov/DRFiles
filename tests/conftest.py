@@ -27,6 +27,7 @@ def test_user(user_model):
 
 @pytest.fixture
 def auth_client(client, test_user):
+    print(f"Creating auth_client for user: {test_user.id}")
     response = client.post(
         urls.login_url,
         {"username": TEST_USERNAME, "password": TEST_PASSWORD},
@@ -55,14 +56,15 @@ def make_test_file():
 
 @pytest.fixture
 def make_test_folder(test_user):
-    def _make_test_folder(
-        name: str = "testfolder",
-        folder=None,
-    ):
-        if not folder:
-            full_path = name + "/"
-        if folder:
-            full_path = folder.full_path + name + "/"
-        return Folder(user=test_user, name=name, folder=folder, full_path=full_path)
+    def _make_test_folder(name: str = "testfolder", parent=None):
+        if parent:
+            full_path = f"{parent.full_path}{name}/"
+        else:
+            full_path = f"{name}/"
+
+        folder = Folder.objects.create(
+            user=test_user, name=name, folder=parent, full_path=full_path
+        )
+        return folder
 
     return _make_test_folder

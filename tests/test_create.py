@@ -424,19 +424,19 @@ def test_upload_file_with_cyrillic_path(auth_client, test_user):
 
 
 def test_create_folder_success(auth_client, test_user, make_test_folder):
-    folder = make_test_folder(name="testfolder2")
+    full_path = "testfolder/"
     response = auth_client.post(
-        f"/api/directory?path={folder.full_path}",
+        f"/api/directory?path={full_path}",
         format="json",
     )
 
     assert response.status_code == 201
 
     data = response.json()
-    assert data["path"] + data["name"] + "/" == folder.full_path
+    assert data["path"] + data["name"] + "/" == full_path
     assert data["type"] == "DIRECTORY"
 
-    assert Folder.objects.filter(user=test_user, full_path=folder.full_path).exists()
+    assert Folder.objects.filter(user=test_user, full_path=full_path).exists()
 
 
 def test_create_nested_folder_success(auth_client, test_user):

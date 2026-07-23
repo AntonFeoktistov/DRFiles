@@ -1,4 +1,5 @@
 import json
+import traceback
 
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -26,15 +27,28 @@ class ResourceView(APIView):
 
     @extend_schema(request=upload_request, parameters=upload_parameters)
     def get(self, request):
+
         serializer = ResourceGetSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
 
         path = serializer.validated_data.get("path", "")
 
-        resource = self.storage.get_resource(user=request.user.id, path=path)
+        try:
+            resource = self.storage.get_resource(request.user.id, path)
+            if not resource:
+                return Response(
+                    {"detail": "Resource is not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            response_serializer = ResourceResponseSerializer(resource)
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-        response_serializer = ResourceResponseSerializer(resource)
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            traceback.print_exc()
+            return Response(
+                {"detail": f"Internal server error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @extend_schema(parameters=delete_parameters)
     def delete(self, request):
