@@ -1,7 +1,5 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from storage.services.main_service import StorageService
@@ -18,13 +16,4 @@ class ResourceDownloadView(APIView):
     @extend_schema(parameters=download_parameters)
     def get(self, request):
         path = request.query_params.get("path", "")
-
-        try:
-            return self.storage.download_resource(request.user.id, path)
-        except FileNotFoundError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response(
-                {"detail": f"Internal server error: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        return self.storage.download_resource(request.user.id, path)

@@ -50,11 +50,13 @@ def auth_client(client, test_user):
 @pytest.fixture
 def make_test_file():
     def _make_test_file(
-        name: str = "test.txt", content: str = "Hello World", encoding: str = "utf-8"
+        name: str = "test.txt", content="Hello World", encoding: str = "utf-8"
     ):
+        if isinstance(content, str):
+            content = content.encode(encoding)
         return SimpleUploadedFile(
             name=name,
-            content=content.encode(encoding),
+            content=content,
             content_type="text/plain",
         )
 
