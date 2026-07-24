@@ -2,13 +2,11 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from storage.models import File, Folder
-from storage.services.minio_service import MinioService
 from tests import factory
 from tests.conftest import make_auth_client_2
 
 User = get_user_model()
 pytestmark = pytest.mark.django_db
-minio = MinioService()
 
 
 # ==================== ТЕСТЫ УДАЛЕНИЯ ФАЙЛОВ ====================
@@ -18,13 +16,17 @@ def test_delete_file_success(auth_client, test_user, make_test_file):
     file = make_test_file(name="test1.txt")
     factory.upload_file(auth_client, file)
 
+    assert factory.is_file_exists_in_db(test_user, "test1.txt")
+    assert factory.is_file_exists_in_minio(test_user, "test1.txt")
+
     response = auth_client.delete(
         "/api/resource?path=test1.txt",
         format="json",
     )
     assert response.status_code == 204
-    assert not File.objects.filter(name=file.name, user=test_user).exists()
-    assert not minio.is_file_exists(test_user.id, file.name)
+
+    assert not factory.is_file_exists_in_db(test_user, "test1.txt")
+    assert not factory.is_file_exists_in_minio(test_user, "test1.txt")
 
 
 def test_delete_file_not_exists(auth_client, test_user):
@@ -41,14 +43,21 @@ def test_delete_file_not_exists_but_another_user_has(
     file = make_test_file(name="test1.txt")
     factory.upload_file(auth_client, file)
 
+    assert factory.is_file_exists_in_db(test_user, "test1.txt")
+    assert factory.is_file_exists_in_minio(test_user, "test1.txt")
+
     auth_client_2 = make_auth_client_2(client, test_user_2)
     response = auth_client_2.delete(
         "/api/resource?path=test1.txt",
         format="json",
     )
     assert response.status_code == 404
-    assert File.objects.filter(name=file.name, user=test_user).exists()
-    assert minio.is_file_exists(test_user.id, file.name)
+
+    assert factory.is_file_exists_in_db(test_user, "test1.txt")
+    assert factory.is_file_exists_in_minio(test_user, "test1.txt")
+
+    assert not factory.is_file_exists_in_db(test_user_2, "test1.txt")
+    assert not factory.is_file_exists_in_minio(test_user_2, "test1.txt")
 
 
 def test_delete_file_not_auth(client, test_user):
@@ -70,32 +79,32 @@ def test_delete_file_not_valid_path(auth_client, test_user):
 # ==================== ТЕСТЫ УДАЛЕНИЯ ПАПОК ====================
 
 
-def test_delete_empty_folder_success(auth_client, test_user, make_test_folder):
-    folder = make_test_folder(name="testfolder")
-    auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
+def test_delete_empty_folder_success(auth_client, test_user):
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
+    assert Folder.objects.filter(user=test_user, full_path="testfolder/").exists()
 
     response = auth_client.delete(
         f"/api/resource?path={folder.full_path}",
         format="json",
     )
     assert response.status_code == 204
-    assert not Folder.objects.filter(name=folder.name, user=test_user).exists()
+
+    assert not Folder.objects.filter(user=test_user, full_path="testfolder/").exists()
 
 
-def test_delete_folder_with_files_success(
-    auth_client, test_user, make_test_folder, make_test_file
-):
-    folder = make_test_folder(name="testfolder")
-    auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
+def test_delete_folder_with_files_success(auth_client, test_user, make_test_file):
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
 
     file1 = make_test_file(name="test1.txt")
     file2 = make_test_file(name="test2.txt")
     factory.upload_file(auth_client, file1, path="testfolder/")
     factory.upload_file(auth_client, file2, path="testfolder/")
 
+    assert factory.is_file_exists_in_db(test_user, "testfolder/test1.txt")
+    assert factory.is_file_exists_in_db(test_user, "testfolder/test2.txt")
+    assert factory.is_file_exists_in_minio(test_user, "testfolder/test1.txt")
+    assert factory.is_file_exists_in_minio(test_user, "testfolder/test2.txt")
     assert File.objects.filter(user=test_user, folder=folder).count() == 2
-    assert minio.is_file_exists(test_user.id, "testfolder/test1.txt")
-    assert minio.is_file_exists(test_user.id, "testfolder/test2.txt")
 
     response = auth_client.delete(
         f"/api/resource?path={folder.full_path}",
@@ -103,34 +112,26 @@ def test_delete_folder_with_files_success(
     )
     assert response.status_code == 204
 
-    assert not Folder.objects.filter(name=folder.name, user=test_user).exists()
+    assert not Folder.objects.filter(user=test_user, full_path="testfolder/").exists()
 
-    assert not File.objects.filter(user=test_user, folder=folder).exists()
-    assert (
-        File.objects.filter(user=test_user, full_path__startswith="testfolder/").count()
-        == 0
-    )
-    assert not minio.is_file_exists(test_user.id, "testfolder/test1.txt")
-    assert not minio.is_file_exists(test_user.id, "testfolder/test2.txt")
+    assert not factory.is_file_exists_in_db(test_user, "testfolder/test1.txt")
+    assert not factory.is_file_exists_in_db(test_user, "testfolder/test2.txt")
+    assert not factory.is_file_exists_in_minio(test_user, "testfolder/test1.txt")
+    assert not factory.is_file_exists_in_minio(test_user, "testfolder/test2.txt")
+    assert File.objects.filter(user=test_user, folder=folder).count() == 0
 
 
-def test_delete_nested_folder_success(
-    auth_client, test_user, make_test_folder, make_test_file
-):
-    parent = make_test_folder(name="parent")
-    auth_client.post(f"/api/directory?path={parent.full_path}", format="json")
-
-    child = make_test_folder(name="child", parent=parent)
-    auth_client.post(f"/api/directory?path={child.full_path}", format="json")
+def test_delete_nested_folder_success(auth_client, test_user, make_test_file):
+    parent = factory.create_folder(auth_client, test_user, "parent/")
+    child = factory.create_folder(auth_client, test_user, "parent/child/")
 
     file = make_test_file(name="test.txt")
     factory.upload_file(auth_client, file, path="parent/child/")
 
     assert Folder.objects.filter(user=test_user, full_path="parent/").exists()
     assert Folder.objects.filter(user=test_user, full_path="parent/child/").exists()
-    assert File.objects.filter(
-        user=test_user, full_path="parent/child/test.txt"
-    ).exists()
+    assert factory.is_file_exists_in_db(test_user, "parent/child/test.txt")
+    assert factory.is_file_exists_in_minio(test_user, "parent/child/test.txt")
 
     response = auth_client.delete(
         "/api/resource?path=parent/child/",
@@ -140,10 +141,8 @@ def test_delete_nested_folder_success(
 
     assert not Folder.objects.filter(user=test_user, full_path="parent/child/").exists()
 
-    assert not File.objects.filter(
-        user=test_user, full_path="parent/child/test.txt"
-    ).exists()
-    assert not minio.is_file_exists(test_user.id, "parent/child/test.txt")
+    assert not factory.is_file_exists_in_db(test_user, "parent/child/test.txt")
+    assert not factory.is_file_exists_in_minio(test_user, "parent/child/test.txt")
 
     assert Folder.objects.filter(user=test_user, full_path="parent/").exists()
 
@@ -157,10 +156,11 @@ def test_delete_folder_not_exists(auth_client, test_user):
 
 
 def test_delete_folder_not_exists_but_another_user_has(
-    auth_client, test_user, test_user_2, client, make_test_folder
+    auth_client, test_user, test_user_2, client
 ):
-    folder = make_test_folder(name="testfolder")
-    auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
+
+    assert Folder.objects.filter(user=test_user, full_path="testfolder/").exists()
 
     auth_client_2 = make_auth_client_2(client, test_user_2)
     response = auth_client_2.delete(
@@ -168,7 +168,10 @@ def test_delete_folder_not_exists_but_another_user_has(
         format="json",
     )
     assert response.status_code == 404
-    assert Folder.objects.filter(name=folder.name, user=test_user).exists()
+
+    assert Folder.objects.filter(user=test_user, full_path="testfolder/").exists()
+
+    assert not Folder.objects.filter(user=test_user_2, full_path="testfolder/").exists()
 
 
 def test_delete_folder_not_auth(client, test_user):
@@ -193,6 +196,10 @@ def test_delete_root_folder_success(auth_client, test_user, make_test_file):
     factory.upload_file(auth_client, file1)
     factory.upload_file(auth_client, file2)
 
+    assert factory.is_file_exists_in_db(test_user, "file1.txt")
+    assert factory.is_file_exists_in_db(test_user, "file2.txt")
+    assert factory.is_file_exists_in_minio(test_user, "file1.txt")
+    assert factory.is_file_exists_in_minio(test_user, "file2.txt")
     assert File.objects.filter(user=test_user).count() == 2
 
     response = auth_client.delete(
@@ -204,4 +211,8 @@ def test_delete_root_folder_success(auth_client, test_user, make_test_file):
     root_folder = Folder.objects.filter(user=test_user, full_path="").first()
     assert root_folder is not None
 
+    assert factory.is_file_exists_in_db(test_user, "file1.txt")
+    assert factory.is_file_exists_in_db(test_user, "file2.txt")
+    assert factory.is_file_exists_in_minio(test_user, "file1.txt")
+    assert factory.is_file_exists_in_minio(test_user, "file2.txt")
     assert File.objects.filter(user=test_user).count() == 2

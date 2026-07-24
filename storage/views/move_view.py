@@ -23,13 +23,6 @@ class ResourceMoveView(APIView):
     def post(self, request):
         path_from = request.query_params.get("from", "")
         path_to = request.query_params.get("to", "")
-
-        try:
-            resource = self.storage.move_resource(request.user.id, path_from, path_to)
-            response_serializer = ResourceResponseSerializer(resource)
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {"detail": f"Internal server error: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        resource = self.storage.move_resource(request.user.id, path_from, path_to)
+        response_serializer = ResourceResponseSerializer(resource)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)

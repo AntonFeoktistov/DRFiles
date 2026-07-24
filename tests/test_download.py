@@ -104,11 +104,8 @@ def test_download_file_with_cyrillic(auth_client, test_user, make_test_file):
     assert content == b"PDF content"
 
 
-def test_download_folder_success(
-    auth_client, test_user, make_test_folder, make_test_file
-):
-    folder = make_test_folder(name="testfolder")
-    auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
+def test_download_folder_success(auth_client, test_user, make_test_file):
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
 
     file1 = make_test_file(name="test1.txt", content="Content 1")
     file2 = make_test_file(name="test2.txt", content="Content 2")
@@ -131,17 +128,10 @@ def test_download_folder_success(
         assert zip_file.read("testfolder/test2.txt").decode("utf-8") == "Content 2"
 
 
-def test_download_folder_with_subfolders(
-    auth_client, test_user, make_test_folder, make_test_file
-):
-    root = make_test_folder(name="testfolder")
-    auth_client.post(f"/api/directory?path={root.full_path}", format="json")
-
-    src = make_test_folder(name="src", parent=root)
-    auth_client.post(f"/api/directory?path={src.full_path}", format="json")
-
-    utils = make_test_folder(name="utils", parent=src)
-    auth_client.post(f"/api/directory?path={utils.full_path}", format="json")
+def test_download_folder_with_subfolders(auth_client, test_user, make_test_file):
+    root = factory.create_folder(auth_client, test_user, "testfolder/")
+    src = factory.create_folder(auth_client, test_user, "testfolder/src/")
+    factory.create_folder(auth_client, test_user, "testfolder/src/utils/")
 
     file1 = make_test_file(name="main.py", content=b"print('Hello')")
     file2 = make_test_file(name="helpers.py", content=b"def help(): pass")
@@ -160,9 +150,8 @@ def test_download_folder_with_subfolders(
         assert "testfolder/src/utils/helpers.py" in zip_names
 
 
-def test_download_empty_folder(auth_client, test_user, make_test_folder):
-    folder = make_test_folder(name="empty")
-    auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
+def test_download_empty_folder(auth_client, test_user):
+    folder = factory.create_folder(auth_client, test_user, "empty/")
 
     response = auth_client.get(
         f"/api/resource/download?path={folder.full_path}",
@@ -175,15 +164,13 @@ def test_download_empty_folder(auth_client, test_user, make_test_folder):
         assert len(zip_file.namelist()) == 0
 
 
-def test_download_root_folder(auth_client, test_user, make_test_file, make_test_folder):
+def test_download_root_folder(auth_client, test_user, make_test_file):
     file1 = make_test_file(name="file1.txt", content=b"Content 1")
     file2 = make_test_file(name="file2.txt", content=b"Content 2")
     factory.upload_file(auth_client, file1)
     factory.upload_file(auth_client, file2)
 
-    folder = make_test_folder(name="docs")
-    auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
-
+    folder = factory.create_folder(auth_client, test_user, "docs/")
     file3 = make_test_file(name="doc.txt", content=b"Doc content")
     factory.upload_file(auth_client, file3, path="docs/")
 
@@ -217,11 +204,9 @@ def test_download_folder_not_auth(client, test_user):
 
 
 def test_download_folder_another_user(
-    auth_client, test_user, test_user_2, client, make_test_folder, make_test_file
+    auth_client, test_user, test_user_2, client, make_test_file
 ):
-    folder = make_test_folder(name="testfolder")
-    auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
-
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
     file = make_test_file(name="test.txt", content=b"Secret")
     factory.upload_file(auth_client, file, path="testfolder/")
 

@@ -12,17 +12,25 @@ load_dotenv()
 
 class MinioService:
     def __init__(self):
-        self.client = self._make_s3_client()
+        self._setup_client()
         self.bucket_name = os.getenv("MINIO_BUCKET_NAME", "user-files")
         self._ensure_bucket_exists()
 
-    def _make_s3_client(self):
+    def _setup_client(self):
         endpoint = os.getenv("MINIO_ENDPOINT", "localhost:9000")
-        return boto3.client(
+        use_ssl = os.getenv("MINIO_USE_SSL", "false").lower() == "true"
+
+        # Для Testcontainers endpoint уже содержит http:// или https://
+        if endpoint.startswith("http://") or endpoint.startswith("https://"):
+            endpoint_url = endpoint
+        else:
+            endpoint_url = (
+                f"http://{endpoint}" if not use_ssl else f"https://{endpoint}"
+            )
+
+        self.client = boto3.client(
             "s3",
-            endpoint_url=f"http://{endpoint}"
-            if not os.getenv("MINIO_USE_SSL", "false").lower() == "true"
-            else f"https://{endpoint}",
+            endpoint_url=endpoint_url,
             aws_access_key_id=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
             aws_secret_access_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),
             region_name="us-east-1",
@@ -37,7 +45,7 @@ class MinioService:
             if error_code == "404":
                 self.client.create_bucket(Bucket=self.bucket_name)
             else:
-                raise
+                self.client.create_bucket(Bucket=self.bucket_name)
 
     def _get_minio_path(self, user_id: int, file_path: str) -> str:
         if not file_path:

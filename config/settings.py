@@ -67,17 +67,43 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Database
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "myproject"),
-        "USER": os.getenv("POSTGRES_USER", "myuser"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "mypassword"),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+# Database - для тестов используем переменные из Testcontainers
+if "test" in sys.argv or "pytest" in sys.modules:
+    # Для тестов используем переменные из контейнера
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("POSTGRES_DB", "test_db"),
+            "USER": os.environ.get("POSTGRES_USER", "test_user"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "test_password"),
+            "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
+            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        }
     }
-}
+
+    # MinIO - из Testcontainers
+    os.environ.setdefault("MINIO_ENDPOINT", "localhost:9000")
+    os.environ.setdefault("MINIO_ACCESS_KEY", "minioadmin")
+    os.environ.setdefault("MINIO_SECRET_KEY", "minioadmin")
+    os.environ.setdefault("MINIO_BUCKET_NAME", "test-user-files")
+    os.environ.setdefault("MINIO_USE_SSL", "false")
+
+    # Упрощаем хеширование паролей для тестов
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.MD5PasswordHasher",
+    ]
+else:
+    # Продакшен настройки
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DB", "myproject"),
+            "USER": os.getenv("POSTGRES_USER", "myuser"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "mypassword"),
+            "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+            "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        }
+    }
 
 if "test" in sys.argv or "pytest" in sys.modules:
     CACHES = {

@@ -5,12 +5,13 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from storage.models import File, Folder
-from storage.services.minio_service import MinioService
+from tests import factory
 
 User = get_user_model()
 pytestmark = pytest.mark.django_db
 
-minio_client = MinioService()
+
+# ==================== ТЕСТЫ ЗАГРУЗКИ ФАЙЛОВ ====================
 
 
 def test_upload_file_success(auth_client, test_user, make_test_file):
@@ -32,8 +33,8 @@ def test_upload_file_success(auth_client, test_user, make_test_file):
     assert "size" in data
     assert data["type"] == "FILE"
 
-    assert File.objects.filter(name=file.name, user=test_user).exists()
-    assert minio_client.is_file_exists(test_user.id, file.name)
+    assert factory.is_file_exists_in_db(test_user, file.name)
+    assert factory.is_file_exists_in_minio(test_user, file.name)
 
 
 def test_upload_file_duplicate(auth_client, test_user, make_test_file):
@@ -49,6 +50,9 @@ def test_upload_file_duplicate(auth_client, test_user, make_test_file):
     )
     assert response.status_code == 201
 
+    assert factory.is_file_exists_in_db(test_user, file.name)
+    assert factory.is_file_exists_in_minio(test_user, file.name)
+
     response = auth_client.post(
         "/api/resource",
         {
@@ -58,6 +62,7 @@ def test_upload_file_duplicate(auth_client, test_user, make_test_file):
         format="multipart",
     )
     assert response.status_code == 409
+    assert "already exists" in response.json()["detail"]
 
 
 def test_upload_file_not_auth(client, test_user, make_test_file):
@@ -107,9 +112,8 @@ def test_upload_file_with_path(auth_client, test_user):
     assert data["path"] == "documents/"
     assert data["name"] == "report.pdf"
 
-    assert File.objects.filter(
-        user=test_user, full_path="documents/report.pdf"
-    ).exists()
+    assert factory.is_file_exists_in_db(test_user, "documents/report.pdf")
+    assert factory.is_file_exists_in_minio(test_user, "documents/report.pdf")
 
 
 def test_upload_multiple_files_with_paths(auth_client, test_user):
@@ -145,11 +149,12 @@ def test_upload_multiple_files_with_paths(auth_client, test_user):
     assert "project/tests/" in folder_paths
 
     for path in paths:
-        assert File.objects.filter(user=test_user, full_path=path).exists()
+        assert factory.is_file_exists_in_db(test_user, path)
+        assert factory.is_file_exists_in_minio(test_user, path)
 
 
 def test_upload_with_base_path(auth_client, test_user):
-    auth_client.post("/api/directory?path=documents/", format="json")
+    factory.create_folder(auth_client, test_user, "documents/")
 
     files = [
         SimpleUploadedFile("report.pdf", b"PDF content"),
@@ -171,12 +176,10 @@ def test_upload_with_base_path(auth_client, test_user):
     )
     assert response.status_code == 201
 
-    assert File.objects.filter(
-        user=test_user, full_path="documents/report.pdf"
-    ).exists()
-    assert File.objects.filter(
-        user=test_user, full_path="documents/subfolder/file.txt"
-    ).exists()
+    assert factory.is_file_exists_in_db(test_user, "documents/report.pdf")
+    assert factory.is_file_exists_in_minio(test_user, "documents/report.pdf")
+    assert factory.is_file_exists_in_db(test_user, "documents/subfolder/file.txt")
+    assert factory.is_file_exists_in_minio(test_user, "documents/subfolder/file.txt")
 
 
 def test_upload_folder_with_structure(auth_client, test_user):
@@ -223,8 +226,10 @@ def test_upload_folder_with_structure(auth_client, test_user):
         "project/src/utils/helpers.py",
         "project/tests/test_main.py",
     ]
+
     for path in expected_paths:
-        assert File.objects.filter(user=test_user, full_path=path).exists()
+        assert factory.is_file_exists_in_db(test_user, path)
+        assert factory.is_file_exists_in_minio(test_user, path)
 
 
 def test_upload_duplicate_file_with_path(auth_client, test_user):
@@ -243,6 +248,9 @@ def test_upload_duplicate_file_with_path(auth_client, test_user):
     )
     assert response.status_code == 201
 
+    assert factory.is_file_exists_in_db(test_user, "documents/report.pdf")
+    assert factory.is_file_exists_in_minio(test_user, "documents/report.pdf")
+
     response = auth_client.post(
         "/api/resource?path=",
         {
@@ -256,7 +264,7 @@ def test_upload_duplicate_file_with_path(auth_client, test_user):
 
 
 def test_upload_nested_into_existing_folder(auth_client, test_user):
-    auth_client.post("/api/directory?path=backup/", format="json")
+    factory.create_folder(auth_client, test_user, "backup/")
 
     files = [
         SimpleUploadedFile("report.pdf", b"PDF"),
@@ -285,8 +293,10 @@ def test_upload_nested_into_existing_folder(auth_client, test_user):
         "backup/2024/data.csv",
         "backup/2025/plan.md",
     ]
+
     for path in expected:
-        assert File.objects.filter(user=test_user, full_path=path).exists()
+        assert factory.is_file_exists_in_db(test_user, path)
+        assert factory.is_file_exists_in_minio(test_user, path)
 
 
 def test_upload_multiple_files_different_folders(auth_client, test_user):
@@ -327,7 +337,8 @@ def test_upload_multiple_files_different_folders(auth_client, test_user):
     for file_data in data:
         full_path = file_data["path"] + file_data["name"]
         assert full_path in expected
-        assert File.objects.filter(user=test_user, full_path=full_path).exists()
+        assert factory.is_file_exists_in_db(test_user, full_path)
+        assert factory.is_file_exists_in_minio(test_user, full_path)
 
 
 def test_upload_deep_nested_structure(auth_client, test_user):
@@ -368,8 +379,10 @@ def test_upload_deep_nested_structure(auth_client, test_user):
         "a/b/c/d/file2.txt",
         "a/b/e/file3.txt",
     ]
+
     for file_path in expected_files:
-        assert File.objects.filter(user=test_user, full_path=file_path).exists()
+        assert factory.is_file_exists_in_db(test_user, file_path)
+        assert factory.is_file_exists_in_minio(test_user, file_path)
 
 
 def test_upload_file_with_spaces_in_path(auth_client, test_user):
@@ -392,9 +405,8 @@ def test_upload_file_with_spaces_in_path(auth_client, test_user):
     assert data["path"] == "my documents/"
     assert data["name"] == "report 2024.pdf"
 
-    assert File.objects.filter(
-        user=test_user, full_path="my documents/report 2024.pdf"
-    ).exists()
+    assert factory.is_file_exists_in_db(test_user, "my documents/report 2024.pdf")
+    assert factory.is_file_exists_in_minio(test_user, "my documents/report 2024.pdf")
 
 
 def test_upload_file_with_cyrillic_path(auth_client, test_user):
@@ -417,13 +429,14 @@ def test_upload_file_with_cyrillic_path(auth_client, test_user):
     assert data["path"] == "документы/"
     assert data["name"] == "отчёт.pdf"
 
-    assert File.objects.filter(user=test_user, full_path="документы/отчёт.pdf").exists()
+    assert factory.is_file_exists_in_db(test_user, "документы/отчёт.pdf")
+    assert factory.is_file_exists_in_minio(test_user, "документы/отчёт.pdf")
 
 
-# ============ Тесты создания папок ============
+# ==================== ТЕСТЫ СОЗДАНИЯ ПАПОК ====================
 
 
-def test_create_folder_success(auth_client, test_user, make_test_folder):
+def test_create_folder_success(auth_client, test_user):
     full_path = "testfolder/"
     response = auth_client.post(
         f"/api/directory?path={full_path}",

@@ -41,8 +41,8 @@ def test_get_file_not_exists(auth_client, test_user, make_test_file):
     assert response.status_code == 404
 
 
-def test_get_folder_success(auth_client, test_user, make_test_folder):
-    folder = make_test_folder(name="testfolder")
+def test_get_folder_success(auth_client, test_user):
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
     auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
 
     response = auth_client.get(
@@ -57,8 +57,8 @@ def test_get_folder_success(auth_client, test_user, make_test_folder):
     assert data["type"] == "DIRECTORY"
 
 
-def test_get_folder_not_exists(auth_client, test_user, make_test_folder):
-    folder = make_test_folder(name="testfolder")
+def test_get_folder_not_exists(auth_client, test_user):
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
     auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
 
     response = auth_client.get(
@@ -68,11 +68,8 @@ def test_get_folder_not_exists(auth_client, test_user, make_test_folder):
     assert response.status_code == 404
 
 
-def test_get_folder_resources_success(
-    auth_client, test_user, make_test_folder, make_test_file
-):
-    folder = make_test_folder(name="testfolder")
-    auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
+def test_get_folder_resources_success(auth_client, test_user, make_test_file):
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
 
     file1 = make_test_file(name="test1.txt")
     file2 = make_test_file(name="test2.txt")
@@ -93,7 +90,7 @@ def test_get_folder_resources_success(
 
 
 def test_get_folder_resources_success_root_folder(
-    auth_client, test_user, make_test_folder, make_test_file
+    auth_client, test_user, make_test_file
 ):
     file1 = make_test_file(name="test1.txt")
     file2 = make_test_file(name="test2.txt")
@@ -113,10 +110,8 @@ def test_get_folder_resources_success_root_folder(
     assert "test2.txt" in file_paths
 
 
-def test_get_folder_resources_empty_folder(
-    auth_client, client, test_user, make_test_folder, make_test_file
-):
-    folder = make_test_folder(name="testfolder")
+def test_get_folder_resources_empty_folder(auth_client, test_user):
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
     auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
 
     response = auth_client.get(
@@ -128,11 +123,8 @@ def test_get_folder_resources_empty_folder(
     assert len(data) == 0
 
 
-def test_get_folder_resources_not_auth(
-    auth_client, client, test_user, make_test_folder, make_test_file
-):
-    folder = make_test_folder(name="testfolder")
-    auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
+def test_get_folder_resources_not_auth(auth_client, client, test_user, make_test_file):
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
 
     file1 = make_test_file(name="test1.txt")
     factory.upload_file(auth_client, file1, path="testfolder/")
@@ -144,10 +136,8 @@ def test_get_folder_resources_not_auth(
     assert response.status_code == 401
 
 
-def test_get_folder_resources_not_exists(
-    auth_client, client, test_user, make_test_folder, make_test_file
-):
-    folder = make_test_folder(name="testfolder")
+def test_get_folder_resources_not_exists(auth_client, test_user):
+    folder = factory.create_folder(auth_client, test_user, "testfolder/")
     auth_client.post(f"/api/directory?path={folder.full_path}", format="json")
 
     response = auth_client.get(
